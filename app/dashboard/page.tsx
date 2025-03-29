@@ -1,76 +1,101 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarIcon, PlusCircle, Users } from "lucide-react"
-import { supabase } from '@/lib/supabase'
+import { supabase } from "@/lib/supabase"
 
-// Sample data - senare ska detta hämtas från Supabase
-const teams = [
-  { id: "1", name: "FC Barcelona Youth", members: 18 },
-  { id: "2", name: "Madrid United", members: 22 },
-  { id: "3", name: "Liverpool Juniors", members: 16 },
-]
+// Definiera types
+type Team = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
+}
 
-const events = [
-  {
-    id: "1",
-    title: "Training Session",
-    team: "FC Barcelona Youth",
-    date: "Today, 6:00 PM",
-    confirmed: 15,
-    total: 18,
-  },
-  {
-    id: "2",
-    title: "Friendly Match",
-    team: "Madrid United",
-    date: "Tomorrow, 3:00 PM",
-    confirmed: 18,
-    total: 22,
-  },
-  {
-    id: "3",
-    title: "Fitness Training",
-    team: "Liverpool Juniors",
-    date: "Wed, 5:30 PM",
-    confirmed: 12,
-    total: 16,
-  },
-]
+type Event = {
+  id: string
+  title: string
+  team: string
+  date: string
+  confirmed: number
+  total: number
+}
 
 export default function DashboardPage() {
   const router = useRouter()
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // Hämta teams när komponenten laddas
   useEffect(() => {
-    const checkSession = async () => {
+    const fetchTeams = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        
         if (!session) {
           router.push('/login')
           return
         }
-        
-        setLoading(false)
+
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('teams')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (teamsError) {
+          throw teamsError
+        }
+
+        console.log('Fetched teams:', teamsData)
+        setTeams(teamsData || [])
       } catch (error) {
-        console.error('Error checking session:', error)
-        router.push('/login')
+        console.error('Error fetching teams:', error)
+        setError('Failed to load teams')
+      } finally {
+        setLoading(false)
       }
     }
 
-    checkSession()
+    fetchTeams()
   }, [router])
+
+  // Sample events data (kan uppdateras senare med riktiga events)
+  const events = [
+    {
+      id: "1",
+      title: "Training Session",
+      team: "FC Barcelona Youth",
+      date: "Today, 6:00 PM",
+      confirmed: 15,
+      total: 18,
+    },
+    {
+      id: "2",
+      title: "Friendly Match",
+      team: "Madrid United",
+      date: "Tomorrow, 3:00 PM",
+      confirmed: 18,
+      total: 22,
+    },
+    {
+      id: "3",
+      title: "Fitness Training",
+      team: "Liverpool Juniors",
+      date: "Wed, 5:30 PM",
+      confirmed: 12,
+      total: 16,
+    },
+  ]
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p className="mt-2">Loading...</p>
+        <p className="mt-2">Loading teams...</p>
       </div>
     </div>
   }
@@ -112,24 +137,39 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </div>
+          {error && (
+            <div className="text-red-500 text-sm">{error}</div>
+          )}
           <div className="grid gap-4">
-            {teams.map((team) => (
-              <Link key={team.id} href={`/teams/${team.id}`}>
-                <Card className="hover:bg-muted/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Users className="h-5 w-5" />
+            {teams.length === 0 ? (
+              <Card className="bg-muted/50">
+                <CardContent className="p-6 text-center text-muted-foreground">
+                  No teams created yet. Create your first team to get started!
+                </CardContent>
+              </Card>
+            ) : (
+              teams.map((team) => (
+                <Link key={team.id} href={`/teams/${team.id}`}>
+                  <Card className="hover:bg-muted/50 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Users className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium">{team.name}</h3>
+                          {team.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {team.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-medium">{team.name}</h3>
-                        <p className="text-sm text-muted-foreground">{team.members} members</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            )}
           </div>
           <div className="mt-6">
             <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
