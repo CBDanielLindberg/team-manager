@@ -1,3 +1,35 @@
+# Team Manager
+
+En webbapplikation för att hantera sportlag och evenemang. Byggd med Next.js, Supabase och Tailwind CSS.
+
+## Funktioner
+
+- Användarautentisering med Supabase
+- Hantera lag och medlemmar
+- Schemalägg och hantera evenemang
+- Responsiv design
+
+## Tech Stack
+
+- Next.js 14
+- Supabase (Auth & Database)
+- Tailwind CSS
+- shadcn/ui komponenter
+
+## Installation
+
+1. Klona repot:
+```bash
+git clone https://github.com/DITT_ANVÄNDARNAMN/REPO_NAMN.git
+```
+
+2. Installera dependencies:
+```bash
+npm install
+```
+
+3. Skapa en .env.local fil med dina Supabase credentials:
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

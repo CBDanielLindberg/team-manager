@@ -1,0 +1,42 @@
+BACKEND STRUKTUR
+
+1. DATABASSCHEMA
+teams:
+- id
+- name
+- admin_id
+
+players:
+- id
+- team_id
+- name
+- email
+- phone
+
+events:
+- id
+- team_id
+- title
+- date
+- time
+- description
+
+invites:
+- id
+- event_id
+- player_id
+- status (pending/accepted/declined)
+
+2. AUTENTISERING
+- Supabase Auth
+- Email/lösenord
+- Google OAuth
+
+3. LAGRING
+- Spelarprofilbilder (valfri, framtida funktion)
+
+4. FELHANTERING & EDGE CASES
+- Hantering av duplicerade spelar-emails
+- Säkerställ att admins endast kan bjuda in lagmedlemmar
+- Validering av datum och tider
+- Felmeddelanden och användarfeedback 

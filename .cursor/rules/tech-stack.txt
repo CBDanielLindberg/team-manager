@@ -1,0 +1,28 @@
+TEKNISK STACK
+
+1. FRONTEND
+- Next.js (v14)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui (komponenter för knappar, formulär, modaler)
+
+2. BACKEND
+- Supabase
+  - PostgreSQL databas
+  - Autentisering
+  - Realtidsnotifikationer
+
+3. NOTIFIKATIONER
+- Supabase Realtime för in-app notifikationer
+- Resend API för email
+
+4. BEROENDEN
+npm-paket:
+- @supabase/supabase-js
+- resend
+- tailwindcss
+- shadcn-ui
+
+5. DOKUMENTATION
+- Supabase Docs
+- Resend Docs 

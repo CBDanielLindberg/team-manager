@@ -1,0 +1,33 @@
+APPLIKATIONSFLÖDE
+
+1. INLOGGNINGSSIDA
+- Användare (admin/spelare) loggar in med email/lösenord eller Google
+- Supabase Auth hantering
+
+2. ADMIN DASHBOARD
+- Lista över lag
+- Knapp för att skapa nytt lag
+- Kalender för schemahantering
+- Möjlighet att klicka på lag för att visa/redigera spelare
+- Möjlighet att skicka inbjudningar
+
+3. LAGSKAPANDE
+- Formulär för laginformation
+- Lägg till spelare (namn, email, telefon)
+
+4. SCHEMASIDA
+- Kalendervy över träningspass
+- Admin: Lägg till events och skicka inbjudningar
+- Spelare: Se events och svara på inbjudningar
+
+5. SPELARE DASHBOARD
+- Visa lagschema
+- Hantera väntande inbjudningar
+- Acceptera/avböja inbjudningar
+
+6. NOTIFIKATIONER
+- Email-inbjudningar
+- In-app notifikationer för nya events
+
+NAVIGATIONSFLÖDE:
+Inloggning → Dashboard (Admin/Spelare) → Laghantering (endast Admin) eller Schema (båda) 

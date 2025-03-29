@@ -1,0 +1,48 @@
+FRONTEND RIKTLINJER
+
+1. DESIGN
+Typografi:
+- Inter (Google Fonts)
+
+Färgpalett:
+- Primär: #1E90FF (blå)
+- Sekundär: #32CD32 (grön)
+- Neutral: #333333 (mörkgrå)
+
+2. LAYOUT
+- 16px bas padding/margin
+- Mobile-first responsiv design
+
+3. KOMPONENTER
+- shadcn/ui för:
+  - Formulär
+  - Knappar
+  - Modaler
+  - Kalendrar
+- Lucide Icons (ingår i shadcn/ui)
+
+4. KODSTANDARD
+- TypeScript strikt mode
+- Komponentbaserad arkitektur
+- Responsiv design
+- Tillgänglighetsanpassning
+
+5. KOMPONENTSTRUKTUR
+- Atomic Design principer
+- Återanvändbara komponenter i /components
+- Sidespecifika komponenter i respektive mapp
+
+6. STATHANTERING
+- React Context för global state
+- React Query för serverstate
+- Local state när lämpligt
+
+7. STYLING
+- Tailwind CSS
+- CSS Modules för komponentspecifik styling
+- Följ designsystem
+
+8. PRESTANDA
+- Implementera lazy loading
+- Optimera bilder
+- Använd Server Components när möjligt 

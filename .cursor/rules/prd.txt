@@ -1,0 +1,114 @@
+PRODUKTKRAVSDOKUMENT (PRD)
+
+1. PRODUKTÖVERSIKT
+- En mobilanpassad webbapplikation för fotbollslagshantering (liknande Spond)
+- Målgrupp: Tränare/administratörer och spelare
+- Syfte: Förenkla laghantering, schemaläggning och kommunikation
+
+2. ANVÄNDARFLÖDEN
+Admin:
+- Loggar in
+- Skapar lag
+- Lägger till spelare
+- Sätter upp träningsscheman
+- Skickar inbjudningar via email/notifikationer
+
+Spelare:
+- Loggar in
+- Ser schema
+- Svarar på inbjudningar (acceptera/avböja)
+- Tar emot notifikationer
+
+3. KÄRNFUNKTIONER
+- Laghantering (skapa/redigera/ta bort spelare med kontaktinfo)
+- Kalender med träningsschema och eventinbjudningar
+- Inbjudningssystem (email + push-notifikationer)
+- Admin- och användarinterface
+
+4. OMFATTNING
+Inkluderat:
+- Laghantering
+- Kalender
+- Inbjudningar
+- Grundläggande notifikationer
+
+Exkluderat (för närvarande):
+- Avancerad analys
+- Betalningsfunktioner
+- Social delning
+
+5. FUNKTIONELLA KRAV
+- Användarhantering (tränare, spelare, administratörer)
+- Laghantering och roster
+- Schemaläggning av matcher och träningar
+- Närvarohantering
+- Kommunikationsverktyg
+- Statistikhantering
+
+6. ICKE-FUNKTIONELLA KRAV
+- Prestanda: Sidladdning under 2 sekunder
+- Tillgänglighet: 99.9% upptid
+- Säkerhet: OAuth2 autentisering
+- Responsiv design för alla enheter
+
+7. ANVÄNDARROLLER
+- Admin/Tränare
+- Spelare
+- Föräldrar/Vårdnadshavare
+
+-- Skapa teams tabell
+CREATE TABLE teams (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    admin_id UUID NOT NULL REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Skapa players tabell
+CREATE TABLE players (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    UNIQUE(email)
+);
+
+-- Skapa events tabell
+CREATE TABLE events (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Skapa invites tabell
+CREATE TABLE invites (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    status VARCHAR(20) CHECK (status IN ('pending', 'accepted', 'declined')) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Skapa index för bättre prestanda
+CREATE INDEX idx_teams_admin_id ON teams(admin_id);
+CREATE INDEX idx_players_team_id ON players(team_id);
+CREATE INDEX idx_events_team_id ON events(team_id);
+CREATE INDEX idx_invites_event_id ON invites(event_id);
+CREATE INDEX idx_invites_player_id ON invites(player_id);
+
+-- Kör detta i Supabase SQL Editor
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+
+-- Policy för att tillåta insättning av nya spelare
+CREATE POLICY "Users can insert their own player data" ON players
+FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Policy för att läsa spelardata
+CREATE POLICY "Users can read their own player data" ON players
+FOR SELECT USING (auth.uid() IS NOT NULL AND email = auth.jwt()->>'email');
