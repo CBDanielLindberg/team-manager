@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CalendarIcon, PlusCircle, Users } from "lucide-react"
+import { CalendarIcon, PlusCircle, Users, Edit, UserPlus, Trash2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 // Definiera types
@@ -14,6 +14,7 @@ type Team = {
   name: string
   description: string | null
   created_at: string
+  thumbnail_url?: string
 }
 
 type Event = {
@@ -62,6 +63,98 @@ export default function DashboardPage() {
 
     fetchTeams()
   }, [router])
+
+  const handleDeleteTeam = async (teamId: string, teamName: string) => {
+    // Första bekräftelsedialogen
+    if (!confirm(`Är du säker på att du vill radera laget "${teamName}"?\n\nDetta kommer att:\n- Ta bort alla spelare i laget\n- Ta bort alla händelser kopplade till laget\n- Detta kan inte ångras!`)) {
+      return
+    }
+
+    // Andra bekräftelsedialogen
+    if (!confirm(`Vill du VERKLIGEN radera laget "${teamName}"?\n\nDetta är din sista chans att avbryta!\n\nSkriv "RADERA" för att bekräfta:`)) {
+      return
+    }
+
+    try {
+      // Kontrollera användarens behörighet
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Du måste vara inloggad för att radera ett lag')
+        return
+      }
+
+      // Kontrollera att användaren är admin för laget
+      const { data: teamData, error: teamCheckError } = await supabase
+        .from('teams')
+        .select('admin_id')
+        .eq('id', teamId)
+        .single()
+
+      if (teamCheckError) {
+        throw new Error('Kunde inte verifiera lagets ägare')
+      }
+
+      if (teamData.admin_id !== session.user.id) {
+        throw new Error('Du har inte behörighet att radera detta lag')
+      }
+
+      // Ta bort alla invites för lagets events
+      const { error: invitesError } = await supabase
+        .from('invites')
+        .delete()
+        .eq('event_id', teamId)
+
+      if (invitesError) {
+        console.error('Error deleting invites:', invitesError)
+        throw new Error('Kunde inte ta bort inbjudningar')
+      }
+
+      // Ta bort alla events för laget
+      const { error: eventsError } = await supabase
+        .from('events')
+        .delete()
+        .eq('team_id', teamId)
+
+      if (eventsError) {
+        console.error('Error deleting events:', eventsError)
+        throw new Error('Kunde inte ta bort händelser')
+      }
+
+      // Ta bort alla spelare i laget
+      const { error: playersError } = await supabase
+        .from('players')
+        .delete()
+        .eq('team_id', teamId)
+
+      if (playersError) {
+        console.error('Error deleting players:', playersError)
+        throw new Error('Kunde inte ta bort spelare')
+      }
+
+      // Ta bort själva laget
+      const { error: teamError } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', teamId)
+
+      if (teamError) {
+        console.error('Error deleting team:', teamError)
+        throw new Error('Kunde inte ta bort laget')
+      }
+
+      // Uppdatera UI:t endast om alla operationer lyckades
+      setTeams(teams.filter(team => team.id !== teamId))
+      
+      // Visa bekräftelsemeddelande
+      alert('Laget har raderats framgångsrikt!')
+      
+      // Ladda om sidan för att säkerställa att allt är uppdaterat
+      window.location.reload()
+    } catch (error) {
+      console.error('Error in delete operation:', error)
+      setError(error instanceof Error ? error.message : 'Kunde inte radera laget. Kontrollera att du har behörighet.')
+    }
+  }
 
   // Sample events data (kan uppdateras senare med riktiga events)
   const events = [
@@ -149,25 +242,53 @@ export default function DashboardPage() {
               </Card>
             ) : (
               teams.map((team) => (
-                <Link key={team.id} href={`/teams/${team.id}`}>
-                  <Card className="hover:bg-muted/50 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Users className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium">{team.name}</h3>
-                          {team.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {team.description}
-                            </p>
-                          )}
-                        </div>
+                <Card key={team.id} className="hover:bg-muted/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
+                        {team.thumbnail_url ? (
+                          <img 
+                            src={team.thumbnail_url} 
+                            alt={team.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Users className="h-6 w-6" />
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{team.name}</h3>
+                        {team.description && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {team.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Link href={`/teams/${team.id}/players`}>
+                          <Button variant="default" size="sm">
+                            <Users className="h-4 w-4 mr-1" />
+                            Players
+                          </Button>
+                        </Link>
+                        <Link href={`/teams/${team.id}/edit`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteTeam(team.id, team.name)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             )}
           </div>

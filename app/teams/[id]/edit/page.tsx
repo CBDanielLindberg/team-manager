@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,47 +8,62 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { supabase } from "@/lib/supabase"
-import { ImageUpload } from "@/components/ui/image-upload"
 
-export default function CreateTeamPage() {
+type TeamData = {
+  id: string
+  name: string
+  description: string | null
+}
+
+export default function EditTeamPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [teamData, setTeamData] = useState({
-    name: '',
-    description: '',
-    thumbnail_url: null
-  })
+  const [teamData, setTeamData] = useState<TeamData | null>(null)
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const { data: team, error } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('id', params.id)
+          .single()
+
+        if (error) throw error
+        setTeamData(team)
+      } catch (error) {
+        console.error('Error:', error)
+        setError('Failed to load team')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTeam()
+  }, [params.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!teamData) return
+
     try {
       setLoading(true)
       setError(null)
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error('Please log in to create a team')
-      }
-
-      // Skapa team
-      const { data: team, error: teamError } = await supabase
+      const { error: updateError } = await supabase
         .from('teams')
-        .insert([{
+        .update({
           name: teamData.name,
-          description: teamData.description,
-          thumbnail_url: teamData.thumbnail_url,
-          admin_id: session.user.id
-        }])
-        .select()
-        .single()
+          description: teamData.description
+        })
+        .eq('id', params.id)
 
-      if (teamError) {
-        // Kolla om det är ett duplicate error
-        if (teamError.code === '23505') {
+      if (updateError) {
+        if (updateError.code === '23505') {
           throw new Error('Ett team med detta namn finns redan')
         }
-        throw teamError
+        throw updateError
       }
 
       router.push('/dashboard')
@@ -56,17 +71,30 @@ export default function CreateTeamPage() {
 
     } catch (error) {
       console.error('Error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to create team')
+      setError(error instanceof Error ? error.message : 'Failed to update team')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-2">Loading team...</p>
+      </div>
+    </div>
+  }
+
+  if (!teamData) {
+    return <div>Team not found</div>
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Create New Team</h1>
+          <h1 className="text-xl font-bold">Edit Team</h1>
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <span className="sr-only">Back</span>
             <svg
@@ -90,8 +118,8 @@ export default function CreateTeamPage() {
       <main className="flex-1 p-4">
         <Card>
           <CardHeader>
-            <CardTitle>Team Information</CardTitle>
-            <CardDescription>Create a new team to manage players and events</CardDescription>
+            <CardTitle>Edit Team Information</CardTitle>
+            <CardDescription>Update your team&apos;s details</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,27 +142,29 @@ export default function CreateTeamPage() {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  value={teamData.description}
+                  value={teamData.description || ''}
                   onChange={(e) => setTeamData({...teamData, description: e.target.value})}
                   placeholder="Enter team description"
                   rows={4}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Team Thumbnail</Label>
-                <ImageUpload
-                  value={teamData.thumbnail_url || null}
-                  onChange={(url) => setTeamData({ ...teamData, thumbnail_url: url })}
-                  teamId="temp"
-                />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => router.back()}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </Button>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? 'Creating Team...' : 'Create Team'}
-              </Button>
             </form>
           </CardContent>
         </Card>
