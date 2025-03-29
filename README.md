@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Team Manager
 
 En webbapplikation för att hantera sportlag och evenemang. Byggd med Next.js, Supabase och Tailwind CSS.
@@ -66,3 +67,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+=======
+# team-manager
+Team  manager for  football planning 
+>>>>>>> 74fbb0deef167ae5cfe97024e897135a883f4c5b
