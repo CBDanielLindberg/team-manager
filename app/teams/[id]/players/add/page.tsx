@@ -25,6 +25,36 @@ type Team = {
   name: string
 }
 
+// Function to send player invitation via our API
+async function sendPlayerInviteApi(playerName: string, email: string, teamName: string) {
+  try {
+    const response = await fetch('/api/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'player-invite',
+        data: {
+          to: email,
+          playerName,
+          teamName,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send invitation');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending invitation:', error);
+    return { success: false, error };
+  }
+}
+
 export default function AddPlayersPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -33,6 +63,15 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
   const [players, setPlayers] = useState<Player[]>([
     { name: '', email: '', phone: '', birth_year: null, sendInvite: false }
   ])
+  const [emailStatus, setEmailStatus] = useState<{
+    sending: boolean;
+    successCount: number;
+    failedCount: number;
+  }>({
+    sending: false,
+    successCount: 0,
+    failedCount: 0,
+  });
 
   // Fetch team info when component loads
   useEffect(() => {
@@ -82,6 +121,11 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
     try {
       setLoading(true)
       setError(null)
+      setEmailStatus({
+        sending: false,
+        successCount: 0,
+        failedCount: 0,
+      });
 
       // Validera att minst en spelare har namn
       if (!players.some(player => player.name.trim())) {
@@ -101,15 +145,46 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
       }))
 
       // Insert players in database
-      const { error: insertError } = await supabase
+      const { data: insertedPlayers, error: insertError } = await supabase
         .from('players')
         .insert(playersWithTeamId)
+        .select()
 
       if (insertError) throw insertError
 
-      // Email functionality commented out for now
-      // If sendInvite is true, we'd send emails here in the future
+      // Find players who should receive invitations
+      const playersToInvite = validPlayers.filter(player => player.email && player.sendInvite)
+      
+      if (playersToInvite.length > 0) {
+        setEmailStatus(prev => ({ ...prev, sending: true }));
+        
+        // Send invites via our API route
+        const emailResults = await Promise.all(
+          playersToInvite.map(player => 
+            sendPlayerInviteApi(
+              player.name,
+              player.email,
+              team?.name || 'Your Team'
+            )
+          )
+        );
+        
+        // Count successful and failed email sends
+        const successCount = emailResults.filter(result => result.success).length;
+        const failedCount = emailResults.length - successCount;
+        
+        setEmailStatus({
+          sending: false,
+          successCount,
+          failedCount
+        });
+      }
 
+      // Short delay to show email status before redirect
+      if (playersToInvite.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      
       router.push(`/teams/${params.id}/players`)
       router.refresh()
 
@@ -149,6 +224,28 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
               {error && (
                 <div className="text-sm text-red-500 text-center">
                   {error}
+                </div>
+              )}
+              
+              {emailStatus.sending && (
+                <div className="text-sm text-blue-500 text-center">
+                  Sending invitations...
+                </div>
+              )}
+              
+              {(emailStatus.successCount > 0 || emailStatus.failedCount > 0) && (
+                <div className="text-sm text-center">
+                  {emailStatus.successCount > 0 && (
+                    <span className="text-green-500">
+                      Successfully sent {emailStatus.successCount} invitation{emailStatus.successCount !== 1 ? 's' : ''}.
+                    </span>
+                  )}
+                  {emailStatus.failedCount > 0 && (
+                    <span className="text-red-500">
+                      {emailStatus.successCount > 0 ? ' ' : ''}
+                      Failed to send {emailStatus.failedCount} invitation{emailStatus.failedCount !== 1 ? 's' : ''}.
+                    </span>
+                  )}
                 </div>
               )}
               
@@ -251,9 +348,9 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
                   </Button>
                   <Button 
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || emailStatus.sending}
                   >
-                    {loading ? 'Saving...' : 'Save Players'}
+                    {loading || emailStatus.sending ? 'Saving...' : 'Save Players'}
                   </Button>
                 </div>
               </div>
