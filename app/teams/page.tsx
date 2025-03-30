@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, Search, Users, Calendar as CalendarIcon } from "lucide-react"
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Search, 
+  Users, 
+  Calendar as CalendarIcon,
+  Home,
+  User
+} from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
@@ -223,21 +231,7 @@ export default function TeamsPage() {
       <nav className="sticky bottom-0 z-10 border-t bg-background">
         <div className="grid grid-cols-4 divide-x">
           <Link href="/dashboard" className="flex flex-col items-center justify-center py-3 text-muted-foreground">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
+            <Home className="h-5 w-5" />
             <span className="mt-1 text-xs">Home</span>
           </Link>
           <Link href="/teams" className="flex flex-col items-center justify-center py-3 text-primary">
@@ -249,22 +243,7 @@ export default function TeamsPage() {
             <span className="mt-1 text-xs">Calendar</span>
           </Link>
           <Link href="/profile" className="flex flex-col items-center justify-center py-3 text-muted-foreground">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="10" r="3" />
-              <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
-            </svg>
+            <User className="h-5 w-5" />
             <span className="mt-1 text-xs">Profile</span>
           </Link>
         </div>
