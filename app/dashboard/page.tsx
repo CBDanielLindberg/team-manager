@@ -21,7 +21,12 @@ type Event = {
   id: string
   title: string
   team: string
+  team_id: string
   date: string
+  start_time: string
+  end_time: string
+  type: "training" | "match"
+  location: string
   confirmed: number
   total: number
 }
@@ -29,7 +34,9 @@ type Event = {
 export default function DashboardPage() {
   const router = useRouter()
   const [teams, setTeams] = useState<Team[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [eventsLoading, setEventsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Hämta teams när komponenten laddas
@@ -64,14 +71,119 @@ export default function DashboardPage() {
     fetchTeams()
   }, [router])
 
+  // Hämta kommande händelser
+  useEffect(() => {
+    const fetchUpcomingEvents = async () => {
+      try {
+        setEventsLoading(true)
+        
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date()
+        const formattedDate = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
+        
+        // Fetch events from the next 7 days
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select(`
+            id, 
+            team_id, 
+            title, 
+            date, 
+            start_time,
+            end_time,
+            description,
+            location,
+            type
+          `)
+          .gte('date', formattedDate) // Events from today and forward
+          .order('date')
+          .order('start_time')
+          .limit(5) // Limit to 5 events
+        
+        if (eventsError) {
+          throw eventsError
+        }
+        
+        // Convert events to our Event type
+        const formattedEvents: Event[] = await Promise.all((eventsData || []).map(async (event) => {
+          // Get team name based on team_id
+          const { data: teamData } = await supabase
+            .from('teams')
+            .select('name')
+            .eq('id', event.team_id)
+            .single()
+          
+          const teamName = teamData?.name || 'Unknown team'
+          
+          // Get number of players in the team
+          const { count } = await supabase
+            .from('players')
+            .select('*', { count: 'exact', head: true })
+            .eq('team_id', event.team_id)
+          
+          // Get number of confirmed players
+          const { count: confirmedCount } = await supabase
+            .from('invites')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'accepted')
+          
+          // Format the date for display
+          const eventDate = new Date(event.date)
+          let formattedDisplayDate = ""
+          
+          const today = new Date()
+          const tomorrow = new Date(today)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          
+          if (eventDate.toDateString() === today.toDateString()) {
+            formattedDisplayDate = `Today, ${event.start_time.substring(0, 5)}`
+          } else if (eventDate.toDateString() === tomorrow.toDateString()) {
+            formattedDisplayDate = `Tomorrow, ${event.start_time.substring(0, 5)}`
+          } else {
+            // Get abbreviated weekday
+            const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            formattedDisplayDate = `${dayNames[eventDate.getDay()]}, ${event.start_time.substring(0, 5)}`
+          }
+          
+          return {
+            id: event.id,
+            title: event.title,
+            team: teamName,
+            team_id: event.team_id,
+            date: formattedDisplayDate,
+            start_time: event.start_time,
+            end_time: event.end_time,
+            type: event.type as "training" | "match",
+            location: event.location,
+            confirmed: confirmedCount || 0,
+            total: count || 0
+          }
+        }))
+        
+        console.log('Fetched upcoming events:', formattedEvents)
+        setEvents(formattedEvents)
+      } catch (error) {
+        console.error('Error fetching upcoming events:', error)
+      } finally {
+        setEventsLoading(false)
+      }
+    }
+    
+    // Only fetch events if teams have been loaded
+    if (!loading) {
+      fetchUpcomingEvents()
+    }
+  }, [loading])
+
   const handleDeleteTeam = async (teamId: string, teamName: string) => {
     // Första bekräftelsedialogen
-    if (!confirm(`Är du säker på att du vill radera laget "${teamName}"?\n\nDetta kommer att:\n- Ta bort alla spelare i laget\n- Ta bort alla händelser kopplade till laget\n- Detta kan inte ångras!`)) {
+    if (!confirm(`Are you sure you want to delete the team "${teamName}"?\n\nThis will:\n- Remove all players in the team\n- Remove all events associated with the team\n- This cannot be undone!`)) {
       return
     }
 
     // Andra bekräftelsedialogen
-    if (!confirm(`Vill du VERKLIGEN radera laget "${teamName}"?\n\nDetta är din sista chans att avbryta!\n\nSkriv "RADERA" för att bekräfta:`)) {
+    if (!confirm(`Do you REALLY want to delete the team "${teamName}"?\n\nThis is your last chance to cancel!\n\nType "DELETE" to confirm:`)) {
       return
     }
 
@@ -79,7 +191,7 @@ export default function DashboardPage() {
       // Kontrollera användarens behörighet
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        setError('Du måste vara inloggad för att radera ett lag')
+        setError('You must be logged in to delete a team')
         return
       }
 
@@ -91,11 +203,11 @@ export default function DashboardPage() {
         .single()
 
       if (teamCheckError) {
-        throw new Error('Kunde inte verifiera lagets ägare')
+        throw new Error('Could not verify team owner')
       }
 
       if (teamData.admin_id !== session.user.id) {
-        throw new Error('Du har inte behörighet att radera detta lag')
+        throw new Error('You do not have permission to delete this team')
       }
 
       // Ta bort alla invites för lagets events
@@ -106,7 +218,7 @@ export default function DashboardPage() {
 
       if (invitesError) {
         console.error('Error deleting invites:', invitesError)
-        throw new Error('Kunde inte ta bort inbjudningar')
+        throw new Error('Could not delete invitations')
       }
 
       // Ta bort alla events för laget
@@ -117,7 +229,7 @@ export default function DashboardPage() {
 
       if (eventsError) {
         console.error('Error deleting events:', eventsError)
-        throw new Error('Kunde inte ta bort händelser')
+        throw new Error('Could not delete events')
       }
 
       // Ta bort alla spelare i laget
@@ -128,7 +240,7 @@ export default function DashboardPage() {
 
       if (playersError) {
         console.error('Error deleting players:', playersError)
-        throw new Error('Kunde inte ta bort spelare')
+        throw new Error('Could not delete players')
       }
 
       // Ta bort själva laget
@@ -139,50 +251,22 @@ export default function DashboardPage() {
 
       if (teamError) {
         console.error('Error deleting team:', teamError)
-        throw new Error('Kunde inte ta bort laget')
+        throw new Error('Could not delete the team')
       }
 
       // Uppdatera UI:t endast om alla operationer lyckades
       setTeams(teams.filter(team => team.id !== teamId))
       
       // Visa bekräftelsemeddelande
-      alert('Laget har raderats framgångsrikt!')
+      alert('The team has been successfully deleted!')
       
       // Ladda om sidan för att säkerställa att allt är uppdaterat
       window.location.reload()
     } catch (error) {
       console.error('Error in delete operation:', error)
-      setError(error instanceof Error ? error.message : 'Kunde inte radera laget. Kontrollera att du har behörighet.')
+      setError(error instanceof Error ? error.message : 'Could not delete the team. Check that you have permission.')
     }
   }
-
-  // Sample events data (kan uppdateras senare med riktiga events)
-  const events = [
-    {
-      id: "1",
-      title: "Training Session",
-      team: "FC Barcelona Youth",
-      date: "Today, 6:00 PM",
-      confirmed: 15,
-      total: 18,
-    },
-    {
-      id: "2",
-      title: "Friendly Match",
-      team: "Madrid United",
-      date: "Tomorrow, 3:00 PM",
-      confirmed: 18,
-      total: 22,
-    },
-    {
-      id: "3",
-      title: "Fitness Training",
-      team: "Liverpool Juniors",
-      date: "Wed, 5:30 PM",
-      confirmed: 12,
-      total: 16,
-    },
-  ]
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center">
@@ -296,30 +380,58 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">This Week</CardTitle>
+                <CardTitle className="text-base">Next Events</CardTitle>
                 <CardDescription>Your scheduled events</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-2">
-                  {events.map((event) => (
-                    <div key={event.id} className="flex items-center gap-4 rounded-lg border p-3">
-                      <div className="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <CalendarIcon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="font-medium leading-none">{event.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {event.team} • {event.date}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs font-medium">
-                          {event.confirmed}/{event.total}
+                {eventsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </div>
+                ) : events.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p>No upcoming events scheduled</p>
+                    <Link href="/calendar" className="mt-2 inline-block">
+                      <Button size="sm" variant="outline" className="gap-1">
+                        <CalendarIcon className="h-4 w-4" />
+                        Schedule an event
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {events.map((event) => (
+                      <div key={event.id} className="flex items-center gap-4 rounded-lg border p-3">
+                        <div className={`flex h-10 w-10 flex-col items-center justify-center rounded-md ${
+                          event.type === 'training' ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          <CalendarIcon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="font-medium leading-none">{event.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {event.team} • {event.date}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {event.location}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-medium">
+                            {event.confirmed}/{event.total}
+                          </div>
                         </div>
                       </div>
+                    ))}
+                    <div className="mt-2 text-center">
+                      <Link href="/calendar">
+                        <Button size="sm" variant="link" className="gap-1">
+                          View all events
+                        </Button>
+                      </Link>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

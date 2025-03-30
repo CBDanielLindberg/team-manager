@@ -1,0 +1,13 @@
+[33m90f0353[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mv0.1.0[m[33m)[m HEAD@{0}: reset: moving to HEAD~2
+[33m62cf9d8[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{1}: commit: docs: Lägger till Wiki-dokumentation med användarguide och utvecklardokumentation
+[33md3b5471[m HEAD@{2}: commit: feat: Lägger till dubbel bekräftelse vid radering av lag och förbättrar felhantering
+[33m90f0353[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mv0.1.0[m[33m)[m HEAD@{3}: commit: Release v0.1.0: Implementera Create Team funktionalitet
+[33mab175d9[m HEAD@{4}: commit: Implementera Create Team funktionalitet med:
+[33me7c711d[m HEAD@{5}: commit: Update port references from 3000 to 3001
+[33m8dcf7c4[m HEAD@{6}: commit (merge): Merge remote changes with local dashboard implementation
+[33ma42bae4[m HEAD@{7}: Branch: renamed refs/heads/main to refs/heads/main
+[33ma42bae4[m HEAD@{9}: Branch: renamed refs/heads/main to refs/heads/main
+[33ma42bae4[m HEAD@{11}: Branch: renamed refs/heads/main to refs/heads/main
+[33ma42bae4[m HEAD@{13}: Branch: renamed refs/heads/master to refs/heads/main
+[33ma42bae4[m HEAD@{15}: commit: Initial commit: Team Manager app with dashboard
+[33m65b3c6a[m HEAD@{16}: commit (initial): Initial commit from Create Next App
