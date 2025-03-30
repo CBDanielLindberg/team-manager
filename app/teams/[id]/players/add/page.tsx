@@ -7,12 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2 } from "lucide-react"
+import { Trash2, ChevronLeft } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY)
 
 type Player = {
   id?: string
@@ -26,36 +23,6 @@ type Player = {
 type Team = {
   id: string
   name: string
-}
-
-// Function to send player invitation email
-async function sendPlayerInvite({
-  to,
-  playerName,
-  teamName,
-}: {
-  to: string
-  playerName: string
-  teamName: string
-}) {
-  try {
-    await resend.emails.send({
-      from: 'Team Manager <noreply@yourapp.com>',
-      to,
-      subject: `You've been added to ${teamName}`,
-      html: `
-        <h2>Welcome to ${teamName}!</h2>
-        <p>Hi ${playerName},</p>
-        <p>You have been added as a player to the team "${teamName}" in Team Manager.</p>
-        <p>You'll receive notifications about upcoming games, trainings, and other team events.</p>
-        <p>If you haven't set up your account yet, you can do so by clicking the link below:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/register?email=${encodeURIComponent(to)}">Set up your account</a>
-      `
-    })
-  } catch (error) {
-    console.error('Failed to send invitation email:', error)
-    throw error
-  }
 }
 
 export default function AddPlayersPage({ params }: { params: { id: string } }) {
@@ -134,30 +101,14 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
       }))
 
       // Insert players in database
-      const { data: insertedPlayers, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('players')
         .insert(playersWithTeamId)
-        .select()
 
       if (insertError) throw insertError
 
-      // Send invitation emails to players with email and sendInvite checked
-      const emailPromises = validPlayers
-        .filter(player => player.email && player.sendInvite)
-        .map(player => 
-          sendPlayerInvite({
-            to: player.email,
-            playerName: player.name,
-            teamName: team?.name || 'Your Team'
-          }).catch(err => {
-            console.error(`Failed to send invitation to ${player.email}:`, err)
-            // Continue with other emails even if one fails
-            return null
-          })
-        )
-
-      // Wait for all emails to be sent
-      await Promise.all(emailPromises)
+      // Email functionality commented out for now
+      // If sendInvite is true, we'd send emails here in the future
 
       router.push(`/teams/${params.id}/players`)
       router.refresh()
@@ -180,21 +131,7 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
               size="icon" 
               onClick={() => router.back()}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6"
-              >
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
+              <ChevronLeft className="h-6 w-6" />
             </Button>
             <h1 className="text-xl font-bold">Add Players</h1>
           </div>
