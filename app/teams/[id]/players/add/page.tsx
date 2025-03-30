@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY)
 
 type Player = {
   id?: string
@@ -16,18 +20,75 @@ type Player = {
   email: string
   phone: string
   birth_year: number | null
+  sendInvite?: boolean
+}
+
+type Team = {
+  id: string
+  name: string
+}
+
+// Function to send player invitation email
+async function sendPlayerInvite({
+  to,
+  playerName,
+  teamName,
+}: {
+  to: string
+  playerName: string
+  teamName: string
+}) {
+  try {
+    await resend.emails.send({
+      from: 'Team Manager <noreply@yourapp.com>',
+      to,
+      subject: `You've been added to ${teamName}`,
+      html: `
+        <h2>Welcome to ${teamName}!</h2>
+        <p>Hi ${playerName},</p>
+        <p>You have been added as a player to the team "${teamName}" in Team Manager.</p>
+        <p>You'll receive notifications about upcoming games, trainings, and other team events.</p>
+        <p>If you haven't set up your account yet, you can do so by clicking the link below:</p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/register?email=${encodeURIComponent(to)}">Set up your account</a>
+      `
+    })
+  } catch (error) {
+    console.error('Failed to send invitation email:', error)
+    throw error
+  }
 }
 
 export default function AddPlayersPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [team, setTeam] = useState<Team | null>(null)
   const [players, setPlayers] = useState<Player[]>([
-    { name: '', email: '', phone: '', birth_year: null }
+    { name: '', email: '', phone: '', birth_year: null, sendInvite: false }
   ])
 
+  // Fetch team info when component loads
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('name')
+          .eq('id', params.id)
+          .single()
+
+        if (error) throw error
+        if (data) setTeam({ id: params.id, name: data.name })
+      } catch (err) {
+        console.error('Error fetching team:', err)
+      }
+    }
+
+    fetchTeam()
+  }, [params.id])
+
   const addPlayerRow = () => {
-    setPlayers([...players, { name: '', email: '', phone: '', birth_year: null }])
+    setPlayers([...players, { name: '', email: '', phone: '', birth_year: null, sendInvite: false }])
   }
 
   const removePlayerRow = (index: number) => {
@@ -35,9 +96,17 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
     setPlayers(newPlayers)
   }
 
-  const updatePlayer = (index: number, field: keyof Player, value: string) => {
+  const updatePlayer = (index: number, field: keyof Player, value: any) => {
     const newPlayers = [...players]
     newPlayers[index] = { ...newPlayers[index], [field]: value }
+    setPlayers(newPlayers)
+  }
+
+  // Special update function for birth year that handles number | null
+  const updateBirthYear = (index: number, value: string) => {
+    const numberValue = value ? parseInt(value) : null
+    const newPlayers = [...players]
+    newPlayers[index] = { ...newPlayers[index], birth_year: numberValue }
     setPlayers(newPlayers)
   }
 
@@ -49,7 +118,7 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
 
       // Validera att minst en spelare har namn
       if (!players.some(player => player.name.trim())) {
-        throw new Error('Minst en spelare måste ha ett namn')
+        throw new Error('At least one player must have a name')
       }
 
       // Filtrera bort tomma rader
@@ -57,15 +126,38 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
 
       // Lägg till team_id för varje spelare
       const playersWithTeamId = validPlayers.map(player => ({
-        ...player,
+        name: player.name,
+        email: player.email,
+        phone: player.phone,
+        birth_year: player.birth_year,
         team_id: params.id
       }))
 
-      const { error: insertError } = await supabase
+      // Insert players in database
+      const { data: insertedPlayers, error: insertError } = await supabase
         .from('players')
         .insert(playersWithTeamId)
+        .select()
 
       if (insertError) throw insertError
+
+      // Send invitation emails to players with email and sendInvite checked
+      const emailPromises = validPlayers
+        .filter(player => player.email && player.sendInvite)
+        .map(player => 
+          sendPlayerInvite({
+            to: player.email,
+            playerName: player.name,
+            teamName: team?.name || 'Your Team'
+          }).catch(err => {
+            console.error(`Failed to send invitation to ${player.email}:`, err)
+            // Continue with other emails even if one fails
+            return null
+          })
+        )
+
+      // Wait for all emails to be sent
+      await Promise.all(emailPromises)
 
       router.push(`/teams/${params.id}/players`)
       router.refresh()
@@ -82,24 +174,30 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Add Players</h1>
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <span className="sr-only">Back</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6"
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => router.back()}
             >
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-          </Button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+              >
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </Button>
+            <h1 className="text-xl font-bold">Add Players</h1>
+          </div>
         </div>
       </header>
 
@@ -124,6 +222,7 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
                     <TableHead>Birth Year</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead>Invite</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -143,9 +242,7 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
                           min="1900"
                           max={new Date().getFullYear()}
                           value={player.birth_year || ''}
-                          onChange={(e) => updatePlayer(index, 'birth_year', 
-                            e.target.value ? parseInt(e.target.value) : null
-                          )}
+                          onChange={(e) => updateBirthYear(index, e.target.value)}
                           placeholder="YYYY"
                         />
                       </TableCell>
@@ -164,6 +261,24 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
                           onChange={(e) => updatePlayer(index, 'phone', e.target.value)}
                           placeholder="Phone"
                         />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <Checkbox 
+                            id={`invite-${index}`}
+                            checked={player.sendInvite}
+                            onCheckedChange={(checked) => 
+                              updatePlayer(index, 'sendInvite', checked === true)
+                            }
+                            disabled={!player.email}
+                          />
+                          <Label
+                            htmlFor={`invite-${index}`}
+                            className="ml-2 text-sm font-normal"
+                          >
+                            Send invite
+                          </Label>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Button
