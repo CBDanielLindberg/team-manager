@@ -1,0 +1,1 @@
+Implement calendar functionality with Supabase integration

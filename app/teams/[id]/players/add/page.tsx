@@ -28,6 +28,8 @@ type Team = {
 // Function to send player invitation via our API
 async function sendPlayerInviteApi(playerName: string, email: string, teamName: string) {
   try {
+    console.log('Försöker skicka e-post till:', email);
+    
     const response = await fetch('/api/email', {
       method: 'POST',
       headers: {
@@ -43,9 +45,11 @@ async function sendPlayerInviteApi(playerName: string, email: string, teamName: 
       }),
     });
 
+    const responseData = await response.json();
+    console.log('E-post API response:', responseData);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to send invitation');
+      throw new Error(responseData.error || 'Failed to send invitation');
     }
 
     return { success: true };
@@ -156,6 +160,7 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
       const playersToInvite = validPlayers.filter(player => player.email && player.sendInvite)
       
       if (playersToInvite.length > 0) {
+        console.log('Spelare som ska få inbjudningar:', playersToInvite.map(p => p.name));
         setEmailStatus(prev => ({ ...prev, sending: true }));
         
         // Send invites via our API route
@@ -169,6 +174,8 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
           )
         );
         
+        console.log('E-postresultat:', emailResults);
+        
         // Count successful and failed email sends
         const successCount = emailResults.filter(result => result.success).length;
         const failedCount = emailResults.length - successCount;
@@ -178,11 +185,16 @@ export default function AddPlayersPage({ params }: { params: { id: string } }) {
           successCount,
           failedCount
         });
+        
+        // I utvecklingssyfte visar vi alltid ett meddelande om detta
+        if (process.env.NODE_ENV !== 'production') {
+          setError("NOTE: In development mode, emails are not actually sent. Check console for details.");
+        }
       }
 
       // Short delay to show email status before redirect
       if (playersToInvite.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
       
       router.push(`/teams/${params.id}/players`)

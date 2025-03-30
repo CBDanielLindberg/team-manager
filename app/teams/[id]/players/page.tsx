@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { UserPlus, Trash2, Mail, Phone, Edit, Pencil } from "lucide-react"
+import { UserPlus, Trash2, Mail, Phone, Edit, Pencil, RefreshCcw } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type Player = {
   id: string
@@ -28,6 +29,8 @@ export default function TeamPlayersPage({ params }: { params: { id: string } }) 
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [resendingPlayerId, setResendingPlayerId] = useState<string | null>(null)
+  const [resendSuccess, setResendSuccess] = useState<{[key: string]: boolean}>({})
 
   useEffect(() => {
     const fetchTeamAndPlayers = async () => {
@@ -80,6 +83,51 @@ export default function TeamPlayersPage({ params }: { params: { id: string } }) 
     } catch (error) {
       console.error('Error:', error)
       setError('Failed to delete player')
+    }
+  }
+
+  const handleResendInvite = async (player: Player) => {
+    if (!player.email) return
+    
+    try {
+      setResendingPlayerId(player.id)
+      setResendSuccess({...resendSuccess, [player.id]: false})
+      
+      const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'player-invite',
+          data: {
+            to: player.email,
+            playerName: player.name,
+            teamName: team?.name || 'Your Team',
+          },
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        console.log('Inbjudan skickad igen:', data)
+        setResendSuccess({...resendSuccess, [player.id]: true})
+        
+        // Rensa framgångsstatusen efter 3 sekunder
+        setTimeout(() => {
+          setResendSuccess((prev) => {
+            const updated = {...prev}
+            delete updated[player.id]
+            return updated
+          })
+        }, 3000)
+      } else {
+        throw new Error(data.error || 'Kunde inte skicka inbjudan')
+      }
+    } catch (error) {
+      console.error('Error resending invite:', error)
+      setError('Failed to resend invitation')
+    } finally {
+      setResendingPlayerId(null)
     }
   }
 
@@ -198,6 +246,32 @@ export default function TeamPlayersPage({ params }: { params: { id: string } }) 
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {player.email && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleResendInvite(player)}
+                                    disabled={resendingPlayerId === player.id}
+                                    className={resendSuccess[player.id] ? "text-green-500" : ""}
+                                  >
+                                    {resendingPlayerId === player.id ? (
+                                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
+                                    ) : resendSuccess[player.id] ? (
+                                      <div className="h-4 w-4 text-green-500">✓</div>
+                                    ) : (
+                                      <RefreshCcw className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Skicka inbjudan igen</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
