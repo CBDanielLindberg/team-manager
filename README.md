@@ -1,41 +1,45 @@
 # Football Team Manager
 
-A comprehensive team management application for sports teams, built with Next.js, React, and Supabase.
+En omfattande laghanterings-applikation för idrottslag, byggd med Next.js, React och Supabase.
 
-## Features
+## Funktioner
 
-- **Team Management**: Create and manage multiple teams
-- **Player Database**: Keep track of all team members
-- **Calendar & Scheduling**: Organize training sessions and matches
-- **Event Attendance**: Track player attendance for events
+- **Laghantering**: Skapa och hantera flera lag
+- **Spelar-databas**: Håll reda på alla lagmedlemmar
+- **Kalender & Schemaläggning**: Organisera träningspass och matcher
+- **Närvarohantering**: Spåra spelarnärvaro för händelser
+- **Återkommande händelser**: Skapa händelser som upprepas veckovis
+- **Inbjudningshantering**: Skicka och skicka om inbjudningar till spelare
 
-## Calendar Features
+## Kalender-funktioner
 
-The calendar component provides a comprehensive view of all scheduled events:
+Kalenderkomponenten ger en omfattande översikt över alla schemalagda händelser:
 
-### Recent Updates
+### Senaste uppdateringar
 
-- **Enhanced Calendar UI**: Redesigned calendar with a more compact and efficient layout
-- **Multi-event View**: Calendar cells now display up to 6 events per day with team and time information
-- **Visual Event Types**: Color-coded events (blue for matches, primary color for training)
-- **Time Range Display**: Each event shows both start and end times
-- **Team Prioritization**: Team name is displayed prominently at the top of each event
-- **Supabase Integration**: Full persistence of event data with proper start/end time support
+- **Förbättrat kalendergränssnitt**: Omdesignat kalender med en mer kompakt och effektiv layout
+- **Visning av flera händelser**: Kalenderceller visar nu upp till 6 händelser per dag med lag- och tidsinformation
+- **Visuella händelsetyper**: Färgkodade händelser (blå för matcher, primärfärg för träning)
+- **Tidsintervall-visning**: Varje händelse visar både start- och sluttid
+- **Lagprioritering**: Lagnamnet visas framträdande högst upp på varje händelse
+- **Supabase-integration**: Fullständig persistens av händelsedata med stöd för start/sluttid
+- **Återkommande händelser**: Möjlighet att skapa händelser som upprepas veckovis
 
-### Using the Calendar
+### Använda kalendern
 
-1. **Navigate**: Use the month navigator to move between months
-2. **View Events**: Click on any day to see detailed events for that day
-3. **Create Events**: Click "New Event" to add a new training session or match:
-   - Select team
-   - Set date and time range
-   - Choose event type (training/match)
-   - Add location and description
-   - Save to database
+1. **Navigera**: Använd månadsnavigatorn för att flytta mellan månader
+2. **Visa händelser**: Klicka på vilken dag som helst för att se detaljerade händelser för den dagen
+3. **Skapa händelser**: Klicka på "Ny händelse" för att lägga till ett nytt träningspass eller match:
+   - Välj lag
+   - Ställ in datum och tidsintervall
+   - Välj händelsetyp (träning/match)
+   - Lägg till plats och beskrivning
+   - Spara till databas
+4. **Återkommande händelser**: Välj "Återkommande" för att skapa händelser som upprepas veckovis
 
-### Database Schema
+### Databasschema
 
-Events are stored in Supabase with the following structure:
+Händelser lagras i Supabase med följande struktur:
 
 ```sql
 CREATE TABLE events (
@@ -49,28 +53,41 @@ CREATE TABLE events (
   description TEXT,
   location TEXT NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('training', 'match')),
+  is_recurring BOOLEAN DEFAULT FALSE,
+  recurring_pattern TEXT,
+  recurring_end_date TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
-## Setup and Installation
+## Spelarhantering
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Configure Supabase connection in `.env` file:
+Spelarhanteringen innehåller följande funktioner:
+
+- **Lägg till spelare**: Bjud in nya spelare till laget via e-post
+- **Skicka om inbjudningar**: Skicka om inbjudningar till spelare som inte har registrerat sig
+- **Redigera spelarinformation**: Uppdatera spelares information och kontaktuppgifter
+- **Ta bort spelare**: Ta bort spelare från laget
+
+## Installation och konfiguration
+
+1. Klona repositoryt
+2. Installera beroenden: `npm install`
+3. Konfigurera Supabase-anslutning i `.env`-filen:
    ```
    NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    ```
-4. Run the development server: `npm run dev`
+4. Kör utvecklingsservern: `npm run dev`
 
-## Technology Stack
+## Teknikstack
 
 - **Frontend**: Next.js, React, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Styling**: Tailwind CSS with Shadcn UI components
+- **Autentisering**: Supabase Auth
+- **Styling**: Tailwind CSS med Shadcn UI-komponenter
+- **UI-komponenter**: Radix UI för dropdownmenyer och tooltips
 
-## License
+## Licens
 
 MIT License
