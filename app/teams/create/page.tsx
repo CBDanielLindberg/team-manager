@@ -111,21 +111,12 @@ export default function CreateTeamPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label>Description</Label>
                 <Textarea
-                  id="description"
                   value={teamData.description}
-                  onChange={(e) => setTeamData({...teamData, description: e.target.value})}
+                  onChange={(e) => setTeamData({ ...teamData, description: e.target.value })}
                   placeholder="Enter team description"
                   rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Team Thumbnail</Label>
-                <ImageUpload
-                  value={teamData.thumbnail_url || null}
-                  onChange={(url) => setTeamData({ ...teamData, thumbnail_url: url })}
-                  teamId="temp"
                 />
               </div>
               <Button 
